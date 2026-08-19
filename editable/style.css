@@ -1,0 +1,51 @@
+/* ページ全体の設定 */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+    /* スクロールバーを隠す場合は以下を有効化 */
+    /* overflow-y: hidden; */
+}
+
+/* スライド全体を中央に配置するためのラッパー */
+.slide-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 0; /* 上下の余白 */
+}
+
+/* 各スライドのコンテナ */
+.slide-container {
+    position: relative;
+    width: 960px; /* スライドの横幅に合わせて調整 */
+    height: 569px; /* スライドの縦幅に合わせて調整 */
+    margin-bottom: 100px; /* ★スライド間の空白設定 */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    background-color: #fff;
+}
+
+/* 最後のスライドの下の余白は不要にする */
+.slide-container:last-child {
+    margin-bottom: 0;
+}
+
+/* iframe自体の設定 */
+.slide-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* iframeに対するクリック・フォーカスを無効化するカバー */
+/* これがないとiframeをクリックした時にキーボードスクロールが効かなくなります */
+.slide-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    /* カバー自体を透明にする */
+    background: transparent;
+}
