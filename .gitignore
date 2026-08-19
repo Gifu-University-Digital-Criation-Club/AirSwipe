@@ -1,3 +1,12 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build and packaging artifacts
+dist/
+build/
+*.egg-info/
+
 # Python bytecode and cache
 __pycache__/
 *.py[cod]
@@ -17,11 +26,6 @@ ENV/
 coverage.xml
 htmlcov/
 
-# Build and packaging artifacts
-build/
-dist/
-*.egg-info/
-
 # Local configuration and secrets
 .env
 .env.*
@@ -31,6 +35,11 @@ dist/
 logs/
 captures/
 recordings/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # IDE and operating-system files
 .vscode/
