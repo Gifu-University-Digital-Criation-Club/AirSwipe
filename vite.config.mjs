@@ -54,4 +54,9 @@ function editableHtmlBuildPlugin() {
 
 export default defineConfig({
   plugins: [editableHtmlDevPlugin(), editableHtmlBuildPlugin()],
+  server: {
+    watch: {
+      ignored: ["**/public/mediapipe/models/*.task"],
+    },
+  },
 });

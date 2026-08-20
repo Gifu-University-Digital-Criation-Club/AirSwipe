@@ -1,6 +1,6 @@
-export type GestureDirection = "left" | "right" | "up" | "down" | "idle" | "none";
+export type GestureDirection = "left" | "right" | "up" | "down" | "snap" | "idle" | "none";
 
-export type GestureId = "SWIPE_LEFT" | "SWIPE_RIGHT" | "SWIPE_UP" | "SWIPE_DOWN" | "IDLE";
+export type GestureId = "SWIPE_LEFT" | "SWIPE_RIGHT" | "SWIPE_UP" | "SWIPE_DOWN" | "SNAP_TWIST" | "IDLE";
 
 export type GestureEvent = {
   id: GestureId;
@@ -11,9 +11,30 @@ export type GestureEvent = {
   metadata?: Record<string, unknown>;
 };
 
+export type SnapTwistStep = "idle" | "headLevel" | "ready" | "fired";
+
+export type SnapTwistDebugState = {
+  step: SnapTwistStep;
+  updatedAt: number;
+  hand?: "left" | "right";
+};
+
 export type Point2D = {
   x: number;
   y: number;
+};
+
+export type Point3D = Point2D & {
+  z: number;
+};
+
+export type HandSide = "left" | "right";
+
+export type HandSample = {
+  landmarks: PoseLandmark[];
+  worldLandmarks?: Point3D[];
+  handedness?: string;
+  handednessScore?: number;
 };
 
 export type MotionSample = {
@@ -22,6 +43,7 @@ export type MotionSample = {
   width: number;
   height: number;
   landmarks?: PoseLandmark[];
+  hands?: HandSample[];
   activeJoint?: string;
   relativePoint?: Point2D;
   relativeBase?: Point2D;
@@ -57,6 +79,20 @@ export type GestureSettings = {
   cooldownMs: number;
 };
 
+export type SnapTwistSettings = {
+  minVisibility: number;
+  maxHeadLevelDistanceRatio: number;
+  minFingerCurlRatio: number;
+  maxFingerCurlRatio: number;
+  minHandSpreadRatio: number;
+  maxWristTravelRatio: number;
+  minPoseHoldMs: number;
+  twistFireAngleDeg: number;
+  maxGestureDurationMs: number;
+  maxTrackingGapMs: number;
+  minConfidence: number;
+};
+
 export type AppSettings = {
   template: {
     path: string;
@@ -72,6 +108,7 @@ export type AppSettings = {
   gesture: {
     enabled: boolean;
     armSwipe: GestureSettings;
+    snapTwist: SnapTwistSettings;
   };
   debug: {
     enabled: boolean;

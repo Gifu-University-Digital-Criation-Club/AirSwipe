@@ -32,6 +32,15 @@
     <div><dt>信頼度</dt><dd id="confidenceText">-</dd></div>
     <div><dt>最終確定</dt><dd id="lastGestureText">none</dd></div>
   </dl>
+  <section class="snap-twist-status" aria-label="Snap Twist状態">
+    <div class="snap-twist-title">Snap Twist</div>
+    <div class="snap-twist-steps" id="snapTwistSteps">
+      <span class="snap-step is-active" data-snap-twist-step="idle" aria-current="step">待機</span>
+      <span class="snap-step" data-snap-twist-step="headLevel" aria-current="false">頭位置</span>
+      <span class="snap-step" data-snap-twist-step="ready" aria-current="false">構え</span>
+      <span class="snap-step" data-snap-twist-step="fired" aria-current="false">発火</span>
+    </div>
+  </section>
 </aside>
 
 <dialog class="settings-dialog" id="settingsDialog">

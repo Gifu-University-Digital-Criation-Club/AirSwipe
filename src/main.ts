@@ -6,8 +6,9 @@ import { bindDebugGestureStatus } from "./debugPanel/gestureStatus";
 import { defaultSettings } from "./config";
 import { ArmSwipeRecognizer } from "./gesture/ArmSwipeRecognizer";
 import { GestureEngine } from "./gesture/GestureEngine";
+import { SnapTwistRecognizer } from "./gesture/SnapTwistRecognizer";
 import { CameraService } from "./services/CameraService";
-import type { AppSettings, GestureDirection, GestureEvent } from "./types";
+import type { AppSettings, GestureDirection, GestureEvent, SnapTwistDebugState } from "./types";
 import { FrameProcessor } from "./vision/FrameProcessor";
 
 type BundledTemplateModule = {
@@ -40,14 +41,17 @@ try {
 }
 const cameraService = new CameraService();
 let frameProcessor: FrameProcessor | null = null;
+let snapTwistRecognizer: SnapTwistRecognizer | null = null;
 let gestureEngine = createGestureEngine();
 let rafId = 0;
 let framesThisSecond = 0;
 let lastFpsAt = performance.now();
 let lastProcessedAt = 0;
 let lastDirectionalInputAt = 0;
+let snapTwistFiredUntil = 0;
 let isIdleState = true;
 const idleTimeoutMs = 1400;
+const snapTwistFiredDisplayMs = 650;
 
 // 発表画面とデバッグ表示で使う必須idです。消したり名前を変えたりしないでください。
 const video = query<HTMLVideoElement>("#cameraVideo");
@@ -61,6 +65,7 @@ const candidateText = query<HTMLElement>("#candidateText");
 const areaText = query<HTMLElement>("#areaText");
 const confidenceText = query<HTMLElement>("#confidenceText");
 const lastGestureText = query<HTMLElement>("#lastGestureText");
+const snapTwistSteps = query<HTMLElement>("#snapTwistSteps");
 const debugPanel = query<HTMLElement>("#debugPanel");
 const debugPanelHeader = query<HTMLElement>("#debugPanelHeader");
 const debugPanelButton = query<HTMLButtonElement>("#debugPanelButton");
@@ -76,7 +81,7 @@ const cooldownValue = query<HTMLOutputElement>("#cooldownValue");
 
 syncSettingsControls();
 applySettingsToUi();
-bindDebugGestureStatus({ confidenceText, lastGestureText, engineStatus });
+bindDebugGestureStatus({ confidenceText, lastGestureText, engineStatus, snapTwistSteps });
 bindEditorActions();
 bindEvents();
 emitIdleState("矢印キーでも確認できます");
@@ -133,8 +138,12 @@ function resolveBundledTemplateKey(path: string): string | null {
 
 // 使用するジェスチャ認識器を組み立てます。将来ジェスチャを増やす場合はここに追加します。
 function createGestureEngine(): GestureEngine {
+  snapTwistRecognizer = new SnapTwistRecognizer(settings.gesture.snapTwist);
   return new GestureEngine(
-    [new ArmSwipeRecognizer(settings.gesture.armSwipe)],
+    [
+      snapTwistRecognizer,
+      new ArmSwipeRecognizer(settings.gesture.armSwipe),
+    ],
     settings.gesture.armSwipe.cooldownMs,
   );
 }
@@ -192,6 +201,8 @@ function bindEvents(): void {
     settings.gesture.armSwipe.maxAxisAngleDeg = Number(velocityInput.value);
     settings.gesture.armSwipe.cooldownMs = Number(cooldownInput.value);
     gestureEngine = createGestureEngine();
+    snapTwistFiredUntil = 0;
+    emitSnapTwistState(performance.now(), { step: "idle", updatedAt: performance.now() });
     syncSettingsControls();
     applySettingsToUi();
   };
@@ -236,6 +247,7 @@ function stopCamera(): void {
   frameProcessor = null;
   cameraService.stop();
   video.srcObject = null;
+  snapTwistFiredUntil = 0;
   cameraToggle.textContent = "カメラ開始";
   cameraStatus.textContent = "Camera: 停止中";
   cameraStatus.classList.remove("ready");
@@ -243,6 +255,7 @@ function stopCamera(): void {
   candidateText.textContent = "none";
   areaText.textContent = "0";
   fpsText.textContent = "処理 0 fps";
+  emitSnapTwistState(performance.now(), { step: "idle", updatedAt: performance.now() });
   emitIdleState("カメラ停止中");
 }
 
@@ -280,13 +293,18 @@ function startLoop(): void {
 
     if (!settings.gesture.enabled) {
       engineStatus.textContent = "Gesture: OFF";
+      emitSnapTwistState(timestamp, { step: "idle", updatedAt: timestamp });
       return;
     }
 
     const event = gestureEngine.process(frame);
     if (event) {
       emitGestureCommand(event);
+      if (event.id === "SNAP_TWIST") {
+        snapTwistFiredUntil = timestamp + snapTwistFiredDisplayMs;
+      }
     }
+    emitSnapTwistState(timestamp);
 
     maybeReturnToIdle(timestamp);
   };
@@ -322,6 +340,16 @@ function emitIdleState(reason: string): void {
     confirmedAt: performance.now(),
     metadata: { reason },
   });
+}
+
+function emitSnapTwistState(timestamp: number, overrideState?: SnapTwistDebugState): void {
+  const detail: SnapTwistDebugState =
+    overrideState ??
+    (timestamp < snapTwistFiredUntil
+      ? { step: "fired", updatedAt: timestamp }
+      : snapTwistRecognizer?.getDebugState() ?? { step: "idle", updatedAt: timestamp });
+
+  window.dispatchEvent(new CustomEvent("snap-twist-state", { detail }));
 }
 
 // 設定ダイアログの入力欄へ、現在の設定値を反映します。

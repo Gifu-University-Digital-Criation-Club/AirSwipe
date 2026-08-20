@@ -1,5 +1,5 @@
-import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
-import type { FrameContext, MotionSample, Point2D, PoseLandmark } from "../types";
+import { FilesetResolver, HandLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
+import type { FrameContext, HandSample, MotionSample, Point2D, Point3D, PoseLandmark } from "../types";
 
 const PROCESS_WIDTH = 320;
 const PROCESS_HEIGHT = 240;
@@ -48,12 +48,14 @@ const POSE_CONNECTIONS: Array<[number, number]> = [
 ];
 
 type PoseLandmarkerInstance = Awaited<ReturnType<typeof PoseLandmarker.createFromOptions>>;
+type HandLandmarkerInstance = Awaited<ReturnType<typeof HandLandmarker.createFromOptions>>;
 
 export class FrameProcessor {
   private readonly video: HTMLVideoElement;
   private readonly debugCanvas: HTMLCanvasElement;
   private readonly debugContext: CanvasRenderingContext2D;
   private poseLandmarker: PoseLandmarkerInstance | null = null;
+  private handLandmarker: HandLandmarkerInstance | null = null;
   private previousJointPositions = new Map<number, Point2D>();
 
   constructor(video: HTMLVideoElement, debugCanvasId: string) {
@@ -78,31 +80,50 @@ export class FrameProcessor {
     this.debugCanvas.height = PROCESS_HEIGHT;
 
     const vision = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
-    this.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: "/mediapipe/models/pose_landmarker_lite.task",
-        delegate: "CPU",
-      },
-      runningMode: "VIDEO",
-      numPoses: 1,
-      minPoseDetectionConfidence: 0.4,
-      minPosePresenceConfidence: 0.4,
-      minTrackingConfidence: 0.4,
-    });
+    [this.poseLandmarker, this.handLandmarker] = await Promise.all([
+      PoseLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "/mediapipe/models/pose_landmarker_lite.task",
+          delegate: "CPU",
+        },
+        runningMode: "VIDEO",
+        numPoses: 1,
+        minPoseDetectionConfidence: 0.4,
+        minPosePresenceConfidence: 0.4,
+        minTrackingConfidence: 0.4,
+      }),
+      HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "/mediapipe/models/hand_landmarker.task",
+          delegate: "CPU",
+        },
+        runningMode: "VIDEO",
+        numHands: 2,
+        minHandDetectionConfidence: 0.45,
+        minHandPresenceConfidence: 0.45,
+        minTrackingConfidence: 0.45,
+      }),
+    ]);
   }
 
   process(timestamp: number, drawDebug: boolean): FrameContext | null {
-    if (!this.poseLandmarker || this.video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+    if (
+      !this.poseLandmarker ||
+      !this.handLandmarker ||
+      this.video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+    ) {
       return null;
     }
 
     const frame = this.captureFrame();
-    const result = this.poseLandmarker.detectForVideo(this.video, timestamp);
-    const landmarks = result.landmarks[0] as PoseLandmark[] | undefined;
-    const motion = this.buildMotion(landmarks, timestamp);
+    const poseResult = this.poseLandmarker.detectForVideo(this.video, timestamp);
+    const handResult = this.handLandmarker.detectForVideo(this.video, timestamp);
+    const landmarks = poseResult.landmarks[0] as PoseLandmark[] | undefined;
+    const hands = this.buildHands(handResult);
+    const motion = this.buildMotion(landmarks, timestamp, hands);
 
     if (drawDebug) {
-      this.drawDebug(frame, landmarks, motion.centroid, motion.relativeBase);
+      this.drawDebug(frame, landmarks, hands, motion.centroid, motion.relativeBase);
     }
 
     return {
@@ -116,14 +137,20 @@ export class FrameProcessor {
 
   release(): void {
     this.poseLandmarker?.close();
+    this.handLandmarker?.close();
     this.poseLandmarker = null;
+    this.handLandmarker = null;
     this.previousJointPositions.clear();
     this.debugContext.clearRect(0, 0, this.debugCanvas.width, this.debugCanvas.height);
   }
 
-  private buildMotion(landmarks: PoseLandmark[] | undefined, timestamp: number): MotionSample {
+  private buildMotion(
+    landmarks: PoseLandmark[] | undefined,
+    timestamp: number,
+    hands: HandSample[],
+  ): MotionSample {
     if (!landmarks) {
-      return this.emptyMotion(timestamp);
+      return this.emptyMotion(timestamp, undefined, hands);
     }
 
     let selected: {
@@ -171,7 +198,7 @@ export class FrameProcessor {
     }
 
     if (!selected) {
-      return this.emptyMotion(timestamp, landmarks);
+      return this.emptyMotion(timestamp, landmarks, hands);
     }
 
     return {
@@ -180,6 +207,7 @@ export class FrameProcessor {
       width: PROCESS_WIDTH,
       height: PROCESS_HEIGHT,
       landmarks,
+      hands,
       activeJoint: selected.name,
       relativePoint: selected.relativePoint,
       relativeBase: selected.base,
@@ -187,13 +215,26 @@ export class FrameProcessor {
     };
   }
 
-  private emptyMotion(timestamp: number, landmarks?: PoseLandmark[]): MotionSample {
+  private buildHands(result: ReturnType<HandLandmarkerInstance["detectForVideo"]>): HandSample[] {
+    return result.landmarks.map((landmarks, index) => {
+      const handedness = result.handedness[index]?.[0];
+      return {
+        landmarks: landmarks as PoseLandmark[],
+        worldLandmarks: result.worldLandmarks[index] as Point3D[] | undefined,
+        handedness: handedness?.categoryName,
+        handednessScore: handedness?.score,
+      };
+    });
+  }
+
+  private emptyMotion(timestamp: number, landmarks?: PoseLandmark[], hands: HandSample[] = []): MotionSample {
     return {
       centroid: null,
       timestamp,
       width: PROCESS_WIDTH,
       height: PROCESS_HEIGHT,
       landmarks,
+      hands,
     };
   }
 
@@ -205,12 +246,14 @@ export class FrameProcessor {
   private drawDebug(
     imageData: ImageData,
     landmarks: PoseLandmark[] | undefined,
+    hands: HandSample[],
     activePoint: Point2D | null,
     activeBase: Point2D | undefined,
   ): void {
     this.debugContext.putImageData(imageData, 0, 0);
 
     if (!landmarks) {
+      this.drawHandsDebug(hands);
       return;
     }
 
@@ -248,6 +291,8 @@ export class FrameProcessor {
       this.debugContext.fill();
     }
 
+    this.drawHandsDebug(hands);
+
     if (activePoint) {
       if (activeBase) {
         this.debugContext.beginPath();
@@ -263,6 +308,34 @@ export class FrameProcessor {
       this.debugContext.lineWidth = 3;
       this.debugContext.strokeStyle = "#ff5838";
       this.debugContext.stroke();
+    }
+  }
+
+  private drawHandsDebug(hands: HandSample[]): void {
+    this.debugContext.lineWidth = 2;
+    this.debugContext.lineCap = "round";
+
+    for (const hand of hands) {
+      for (const { start, end } of HandLandmarker.HAND_CONNECTIONS) {
+        const from = hand.landmarks[start];
+        const to = hand.landmarks[end];
+        if (!from || !to) {
+          continue;
+        }
+
+        this.debugContext.beginPath();
+        this.debugContext.moveTo(from.x * PROCESS_WIDTH, from.y * PROCESS_HEIGHT);
+        this.debugContext.lineTo(to.x * PROCESS_WIDTH, to.y * PROCESS_HEIGHT);
+        this.debugContext.strokeStyle = "#a855f7";
+        this.debugContext.stroke();
+      }
+
+      for (const landmark of hand.landmarks) {
+        this.debugContext.beginPath();
+        this.debugContext.arc(landmark.x * PROCESS_WIDTH, landmark.y * PROCESS_HEIGHT, 2.5, 0, Math.PI * 2);
+        this.debugContext.fillStyle = "#f0abfc";
+        this.debugContext.fill();
+      }
     }
   }
 

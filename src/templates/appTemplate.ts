@@ -6,6 +6,7 @@ const directionLabels: Record<GestureDirection, string> = {
   right: "RIGHT",
   up: "UP",
   down: "DOWN",
+  snap: "SNAP",
   idle: "IDLE",
   none: "NONE",
 };
