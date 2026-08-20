@@ -37,12 +37,14 @@ type PdfJsModule = {
 
 const PDF_JS_MODULE_PATH = "/build/pdf.mjs";
 const PDF_JS_WORKER_PATH = "/build/pdf.worker.mjs";
-const MAX_PAGE_WIDTH = 960;
 
 // イベント受け取り用関数です。
 export function bindEditorActions(): void {
   const viewer = getRequiredElement<HTMLElement>("#pdf-viewer");
   const status = getRequiredElement<HTMLElement>("#pdf-status");
+
+  viewer.style.width = "100%";
+  viewer.style.padding = "0";
 
   let slides: HTMLElement[] = [];
   let currentIndex = 0;
@@ -50,10 +52,10 @@ export function bindEditorActions(): void {
   let scrollEndTimer = 0;
   let scrollUpdateFrame = 0;
 
-  window.scrollTo(0, 0);
+  viewer.scrollTo({ left: 0, top: 0 });
 
-  // 手動スクロール時も画面中央に最も近いページへ現在位置を追従させる
-  window.addEventListener("scroll", scheduleCurrentIndexUpdate, { passive: true });
+  // 手動スクロール時も横方向の現在ページへ位置を追従させる
+  viewer.addEventListener("scroll", scheduleCurrentIndexUpdate, { passive: true });
 
   // これは絶対に弄らない。一応解説：ジェスチャが確定すると main.ts から gesture-command が発火します。
   window.addEventListener("gesture-command", (event) => {
@@ -84,6 +86,7 @@ export function bindEditorActions(): void {
       viewer.setAttribute("aria-busy", "false");
       status.hidden = true;
       currentIndex = 0;
+      viewer.scrollTo({ left: 0, top: 0 });
       syncCurrentIndex();
     } catch (error) {
       viewer.setAttribute("aria-busy", "false");
@@ -101,10 +104,10 @@ export function bindEditorActions(): void {
   function renderGestureCommand(event: GestureEvent): void {
     if (isScrolling || slides.length === 0) return;
 
-    if (event.direction === "down" && currentIndex < slides.length - 1) {
+    if (event.direction === "right" && currentIndex < slides.length - 1) {
       currentIndex++;
       scrollToSlide(currentIndex);
-    } else if (event.direction === "up" && currentIndex > 0) {
+    } else if (event.direction === "left" && currentIndex > 0) {
       currentIndex--;
       scrollToSlide(currentIndex);
     }
@@ -116,9 +119,10 @@ export function bindEditorActions(): void {
     if (!slide) return;
 
     isScrolling = true;
-    slide.scrollIntoView({
+    viewer.scrollTo({
+      left: index * viewer.clientWidth,
+      top: 0,
       behavior: "smooth",
-      block: "center",
     });
 
     window.clearTimeout(scrollEndTimer);
@@ -138,26 +142,14 @@ export function bindEditorActions(): void {
     });
   }
 
-  // 画面中央に最も近いページを現在位置として記録する
+  // 横方向のスクロール位置から現在ページを記録する
   function syncCurrentIndex(): void {
-    if (slides.length === 0) return;
+    if (slides.length === 0 || viewer.clientWidth === 0) return;
 
-    const viewportCenter = window.innerHeight / 2;
-    let nearestIndex = 0;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-
-    slides.forEach((slide, index) => {
-      const rect = slide.getBoundingClientRect();
-      const slideCenter = rect.top + rect.height / 2;
-      const distance = Math.abs(slideCenter - viewportCenter);
-
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestIndex = index;
-      }
-    });
-
-    currentIndex = nearestIndex;
+    currentIndex = Math.min(
+      slides.length - 1,
+      Math.max(0, Math.round(viewer.scrollLeft / viewer.clientWidth)),
+    );
   }
 }
 
@@ -192,19 +184,29 @@ async function createPdfSlide(
 ): Promise<HTMLElement> {
   const page = await pdfDocument.getPage(pageNumber);
   const originalViewport = page.getViewport({ scale: 1 });
-  const availableWidth = Math.min(
-    MAX_PAGE_WIDTH,
-    Math.max(window.innerWidth - 32, 1),
+
+  const screenWidth = Math.max(
+    document.documentElement.clientWidth,
+    1,
   );
-  const scale = availableWidth / originalViewport.width;
+  const screenHeight = Math.max(window.innerHeight, 1);
+  const widthScale = screenWidth / originalViewport.width;
+  const heightScale = screenHeight / originalViewport.height;
+  const scale = Math.min(widthScale, heightScale);
   const viewport = page.getViewport({ scale });
   const outputScale = Math.min(window.devicePixelRatio || 1, 2);
 
   const slide = document.createElement("section");
   slide.className = "slide-container pdf-page";
   slide.setAttribute("aria-label", `PDF ${pageNumber}ページ目`);
-  slide.style.width = `${viewport.width}px`;
-  slide.style.height = `${viewport.height}px`;
+  slide.style.width = "100%";
+  slide.style.height = "100vh";
+  slide.style.margin = "0";
+  slide.style.display = "flex";
+  slide.style.alignItems = "center";
+  slide.style.justifyContent = "center";
+  slide.style.backgroundColor = "#000";
+  slide.style.boxShadow = "none";
 
   const canvas = document.createElement("canvas");
   canvas.className = "pdf-canvas";
@@ -213,8 +215,9 @@ async function createPdfSlide(
   canvas.width = Math.floor(viewport.width * outputScale);
   canvas.height = Math.floor(viewport.height * outputScale);
   canvas.style.display = "block";
-  canvas.style.width = `${viewport.width}px`;
-  canvas.style.height = `${viewport.height}px`;
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.style.objectFit = "contain";
 
   const context = canvas.getContext("2d");
   if (!context) {

@@ -1,10 +1,12 @@
 /* ページ全体の設定 */
+html,
 body {
+    width: 100%;
+    height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #f0f0f0;
-    /* スクロールバーを隠す場合は以下を有効化 */
-    /* overflow-y: hidden; */
+    overflow: hidden;
+    background-color: #000;
 }
 
 /* スライド全体を中央に配置するためのラッパー */
@@ -13,6 +15,34 @@ body {
     flex-direction: column;
     align-items: center;
     padding: 50px 0; /* 上下の余白 */
+}
+
+/* PDFページを左から右へ並べる横スクロール領域 */
+#pdf-viewer {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100vw;
+    height: 100vh;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+}
+
+#pdf-viewer::-webkit-scrollbar {
+    display: none;
+}
+
+/* PDFの各ページを横方向に1画面ずつ配置 */
+#pdf-viewer .pdf-page {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
 }
 
 /* 各スライドのコンテナ */
