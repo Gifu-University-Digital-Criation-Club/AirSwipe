@@ -1,6 +1,16 @@
 <!-- スライド全体を囲むラッパー -->
-<div class="slide-wrapper">
+<main class="pdf-presentation">
+  <p id="pdf-status" role="status">
+    PDFを読み込んでいます…
+  </p>
 
+  <div
+    id="pdf-viewer"
+    class="slide-wrapper"
+    aria-label="PDFスライド"
+    aria-busy="true"
+  ></div>
+</main>
   <!-- 1枚目のスライド -->
   <div class="slide-container">
     <!-- スライド操作をさせずスクロールに集中させるための透明なカバー -->
