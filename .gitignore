@@ -4,7 +4,7 @@ node_modules/
 
 # Build and packaging artifacts
 dist/
-build/
+
 *.egg-info/
 
 # Python bytecode and cache
