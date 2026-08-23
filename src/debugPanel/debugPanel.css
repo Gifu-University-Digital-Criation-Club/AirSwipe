@@ -17,8 +17,7 @@
   cursor: pointer;
 }
 
-.icon-button,
-.close-button {
+.icon-button {
   border: 1px solid #b9c7da;
   border-radius: 6px;
   background: #ffffff;
@@ -27,8 +26,7 @@
   font-weight: 700;
 }
 
-.icon-button:hover,
-.close-button:hover {
+.icon-button:hover {
   background: #eef5ff;
 }
 
@@ -224,57 +222,6 @@
 .snap-step[data-snap-twist-step="fired"].is-active {
   border-color: #15803d;
   background: #15803d;
-}
-
-.settings-dialog {
-  width: min(420px, calc(100vw - 32px));
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  box-shadow: 0 24px 70px rgba(20, 30, 50, 0.25);
-}
-
-.settings-dialog::backdrop {
-  background: rgba(15, 24, 38, 0.35);
-}
-
-.settings-dialog form {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
-}
-
-.dialog-header,
-.setting-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.dialog-header h2 {
-  margin: 0;
-}
-
-.close-button {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-}
-
-.setting-line,
-.setting-stack {
-  color: #24364e;
-  font-weight: 800;
-}
-
-.setting-stack {
-  display: grid;
-  gap: 8px;
-}
-
-.setting-stack input {
-  width: 100%;
 }
 
 @media (max-width: 620px) {

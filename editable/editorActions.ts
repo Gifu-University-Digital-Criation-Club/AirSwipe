@@ -29,17 +29,21 @@ type PdfJsModule = {
     workerSrc: string;
   };
   getDocument(source: {
-    url: string;
+    data: Uint8Array;
   }): {
     promise: Promise<PdfDocument>;
   };
 };
 
+export type PdfViewerController = {
+  loadFile(file: File): Promise<void>;
+};
+
 const PDF_JS_MODULE_PATH = "/build/pdf.mjs";
 const PDF_JS_WORKER_PATH = "/build/pdf.worker.mjs";
 
-// イベント受け取り用関数です。
-export function bindEditorActions(): void {
+// PDF表示とジェスチャ操作を初期化し、外部からPDFを差し替える操作を提供します。
+export function bindEditorActions(): PdfViewerController {
   const viewer = getRequiredElement<HTMLElement>("#pdf-viewer");
   const status = getRequiredElement<HTMLElement>("#pdf-status");
 
@@ -51,6 +55,7 @@ export function bindEditorActions(): void {
   let isScrolling = false;
   let scrollEndTimer = 0;
   let scrollUpdateFrame = 0;
+  let loadRequestId = 0;
 
   viewer.scrollTo({ left: 0, top: 0 });
 
@@ -62,42 +67,90 @@ export function bindEditorActions(): void {
     renderGestureCommand((event as CustomEvent<GestureEvent>).detail);
   });
 
-  void initializePdf();
+  void initializeInitialPdf();
 
-  // PDF.jsを読み込み、PDFの全ページをcanvasへ描画します。
-  async function initializePdf(): Promise<void> {
+  // 起動時は同梱のdemo.pdfを表示し、未配置ならPDFの選択を案内します。
+  async function initializeInitialPdf(): Promise<void> {
+    const initialRequestId = loadRequestId;
+
+    try {
+      const demoUrl = new URL("./demo.pdf", import.meta.url).href;
+      const response = await fetch(demoUrl);
+      if (initialRequestId !== loadRequestId) return;
+
+      if (!response.ok) {
+        showUnloadedState();
+        return;
+      }
+
+      await loadPdfData(new Uint8Array(await response.arrayBuffer()), "demo.pdf");
+    } catch (error) {
+      if (initialRequestId !== loadRequestId) return;
+
+      showUnloadedState();
+      console.warn("demo.pdfを読み込めませんでした。", error);
+    }
+  }
+
+  // 選択されたローカルPDFを表示します。
+  async function loadFile(file: File): Promise<void> {
+    await loadPdfData(new Uint8Array(await file.arrayBuffer()), file.name);
+  }
+
+  // PDF.jsを使い、PDFの全ページをcanvasへ描画します。
+  async function loadPdfData(data: Uint8Array, filename: string): Promise<void> {
+    const requestId = ++loadRequestId;
+    viewer.setAttribute("aria-busy", "true");
+    status.hidden = false;
+    status.textContent = `PDFを読み込んでいます… ${filename}`;
+    viewer.replaceChildren();
+    slides = [];
+    currentIndex = 0;
+    viewer.scrollTo({ left: 0, top: 0 });
+
     try {
       const pdfjsLib = await loadPdfJs();
-      const pdfUrl = new URL("./demo.pdf", import.meta.url).href;
-      const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
+      const loadingTask = pdfjsLib.getDocument({ data });
       const pdfDocument = await loadingTask.promise;
 
-      viewer.replaceChildren();
-      slides = [];
-
       for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber++) {
-        status.textContent = `PDFを読み込んでいます… ${pageNumber}/${pdfDocument.numPages}`;
+        if (requestId !== loadRequestId) return;
 
+        status.textContent = `PDFを読み込んでいます… ${filename} (${pageNumber}/${pdfDocument.numPages})`;
         const slide = await createPdfSlide(pdfDocument, pageNumber);
+        if (requestId !== loadRequestId) return;
+
         viewer.append(slide);
         slides.push(slide);
       }
 
+      if (requestId !== loadRequestId) return;
+
       viewer.setAttribute("aria-busy", "false");
       status.hidden = true;
-      currentIndex = 0;
-      viewer.scrollTo({ left: 0, top: 0 });
       syncCurrentIndex();
     } catch (error) {
+      if (requestId !== loadRequestId) return;
+
       viewer.setAttribute("aria-busy", "false");
       status.hidden = false;
       status.textContent =
         error instanceof Error
           ? `PDFを表示できませんでした: ${error.message}`
           : "PDFを表示できませんでした。";
-
       console.error(error);
     }
+  }
+
+  // 起動時のdemo.pdfが存在しない場合に、PDF選択を促します。
+  function showUnloadedState(): void {
+    ++loadRequestId;
+    viewer.replaceChildren();
+    slides = [];
+    currentIndex = 0;
+    viewer.setAttribute("aria-busy", "false");
+    status.hidden = false;
+    status.textContent = "PDFは未読込です。「読込」からPDFを選択してください。";
   }
 
   // ジェスチャ確定時のページ位置を更新する関数です。
@@ -151,6 +204,8 @@ export function bindEditorActions(): void {
       Math.max(0, Math.round(viewer.scrollLeft / viewer.clientWidth)),
     );
   }
+
+  return { loadFile };
 }
 
 // 必須のHTML要素を取得し、以降ではnullでない型として扱います。

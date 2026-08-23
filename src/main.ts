@@ -69,20 +69,12 @@ const snapTwistSteps = query<HTMLElement>("#snapTwistSteps");
 const debugPanel = query<HTMLElement>("#debugPanel");
 const debugPanelHeader = query<HTMLElement>("#debugPanelHeader");
 const debugPanelButton = query<HTMLButtonElement>("#debugPanelButton");
-const settingsDialog = query<HTMLDialogElement>("#settingsDialog");
-const settingsOpen = query<HTMLButtonElement>("#settingsOpen");
-const gestureToggle = query<HTMLInputElement>("#gestureToggle");
-const distanceInput = query<HTMLInputElement>("#distanceInput");
-const velocityInput = query<HTMLInputElement>("#velocityInput");
-const cooldownInput = query<HTMLInputElement>("#cooldownInput");
-const distanceValue = query<HTMLOutputElement>("#distanceValue");
-const velocityValue = query<HTMLOutputElement>("#velocityValue");
-const cooldownValue = query<HTMLOutputElement>("#cooldownValue");
+const pdfLoad = query<HTMLButtonElement>("#pdfLoad");
+const pdfFileInput = query<HTMLInputElement>("#pdfFileInput");
 
-syncSettingsControls();
 applySettingsToUi();
 bindDebugGestureStatus({ confidenceText, lastGestureText, engineStatus, snapTwistSteps });
-bindEditorActions();
+const pdfViewer = bindEditorActions();
 bindEvents();
 emitIdleState("矢印キーでも確認できます");
 
@@ -148,7 +140,7 @@ function createGestureEngine(): GestureEngine {
   );
 }
 
-// カメラ、キーボード、設定UIなどアプリ本体のイベントを登録します。
+// カメラ、キーボード、PDF読込などアプリ本体のイベントを登録します。
 // 画面独自のボタン処理は editable/editorActions.ts に追加してください。
 function bindEvents(): void {
   cameraToggle.addEventListener("click", () => {
@@ -163,7 +155,16 @@ function bindEvents(): void {
     settings.debug.panelVisible = !settings.debug.panelVisible;
     applySettingsToUi();
   });
-  settingsOpen.addEventListener("click", () => settingsDialog.showModal());
+  pdfLoad.addEventListener("click", () => pdfFileInput.click());
+  pdfFileInput.addEventListener("change", () => {
+    const [file] = pdfFileInput.files ?? [];
+    if (file) {
+      void pdfViewer.loadFile(file);
+    }
+
+    // 同じファイルを続けて選択した場合もchangeイベントを発火させる。
+    pdfFileInput.value = "";
+  });
   fullscreenButton.addEventListener("click", () => {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
@@ -194,25 +195,6 @@ function bindEvents(): void {
       metadata: { source: "keyboard" },
     });
   });
-
-  const onSettingsChange = () => {
-    settings.gesture.enabled = gestureToggle.checked;
-    settings.gesture.armSwipe.minDistanceRatio = Number(distanceInput.value);
-    settings.gesture.armSwipe.maxAxisAngleDeg = Number(velocityInput.value);
-    settings.gesture.armSwipe.cooldownMs = Number(cooldownInput.value);
-    gestureEngine = createGestureEngine();
-    snapTwistFiredUntil = 0;
-    emitSnapTwistState(performance.now(), { step: "idle", updatedAt: performance.now() });
-    syncSettingsControls();
-    applySettingsToUi();
-  };
-
-  [
-    gestureToggle,
-    distanceInput,
-    velocityInput,
-    cooldownInput,
-  ].forEach((control) => control.addEventListener("input", onSettingsChange));
 
   bindDebugPanelDrag();
 }
@@ -350,17 +332,6 @@ function emitSnapTwistState(timestamp: number, overrideState?: SnapTwistDebugSta
       : snapTwistRecognizer?.getDebugState() ?? { step: "idle", updatedAt: timestamp });
 
   window.dispatchEvent(new CustomEvent("snap-twist-state", { detail }));
-}
-
-// 設定ダイアログの入力欄へ、現在の設定値を反映します。
-function syncSettingsControls(): void {
-  gestureToggle.checked = settings.gesture.enabled;
-  distanceInput.value = String(settings.gesture.armSwipe.minDistanceRatio);
-  velocityInput.value = String(settings.gesture.armSwipe.maxAxisAngleDeg);
-  cooldownInput.value = String(settings.gesture.armSwipe.cooldownMs);
-  distanceValue.textContent = `${settings.gesture.armSwipe.minDistanceRatio.toFixed(2)}x`;
-  velocityValue.textContent = `${settings.gesture.armSwipe.maxAxisAngleDeg}deg`;
-  cooldownValue.textContent = `${settings.gesture.armSwipe.cooldownMs}ms`;
 }
 
 // 設定値に合わせて画面の表示・非表示を切り替えます。
