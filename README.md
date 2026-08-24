@@ -74,6 +74,12 @@ ChromeまたはEdgeで[http://127.0.0.1:5173/](http://127.0.0.1:5173/)(注：ア
 
 依存ライブラリが更新されていない普段の作業では、`pnpm run dev`だけで起動できます。別の人の変更を取り込んだ後は、起動前に`pnpm install --frozen-lockfile`を実行してください。
 
+### PowerPointを読み込む場合
+
+「資料読込」からPDFに加えてPowerPoint（`.ppt` / `.pptx`）を指定できます。PowerPointは、このPC上でLibreOfficeを使ってPDFへ変換してから表示します。
+
+事前に[LibreOffice](https://www.libreoffice.org/download/download-libreoffice/)をインストールし、インストール後は`pnpm run dev`を一度終了して起動し直してください。通常は自動で検出されます。検出できない環境では、`AIRSWIPE_SOFFICE_PATH`に`soffice`実行ファイルのパスを指定してから起動してください。
+
 ## コマンドが見つからない場合
 
 次のコマンドで、Windowsが各コマンドを見つけられるか確認します。

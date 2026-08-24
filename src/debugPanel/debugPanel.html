@@ -17,9 +17,14 @@
   </div>
   <div class="debug-controls" aria-label="デバッグ操作">
     <button class="icon-button" id="cameraToggle" type="button">カメラ開始</button>
-    <button class="icon-button" id="pdfLoad" type="button">PDF読込</button>
+    <button class="icon-button" id="pdfLoad" type="button">資料読込</button>
     <button class="icon-button" id="fullscreenButton" type="button">全画面</button>
-    <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" hidden />
+    <input
+      id="pdfFileInput"
+      type="file"
+      accept="application/pdf,.pdf,application/vnd.ms-powerpoint,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx"
+      hidden
+    />
   </div>
   <div class="debug-status-list" aria-label="動作状態">
     <span class="status-pill ready" id="visionStatus">Vision: Pose Landmarker lite</span>

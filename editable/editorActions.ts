@@ -41,6 +41,7 @@ export type PdfViewerController = {
 
 const PDF_JS_MODULE_PATH = "/build/pdf.mjs";
 const PDF_JS_WORKER_PATH = "/build/pdf.worker.mjs";
+const presentationExtensions = new Set(["ppt", "pptx"]);
 
 // PDF表示とジェスチャ操作を初期化し、外部からPDFを差し替える操作を提供します。
 export function bindEditorActions(): PdfViewerController {
@@ -92,9 +93,42 @@ export function bindEditorActions(): PdfViewerController {
     }
   }
 
-  // 選択されたローカルPDFを表示します。
+  // 選択されたPDFまたはPowerPointを表示します。
   async function loadFile(file: File): Promise<void> {
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (extension && presentationExtensions.has(extension)) {
+      await loadPresentationFile(file);
+      return;
+    }
+
     await loadPdfData(new Uint8Array(await file.arrayBuffer()), file.name);
+  }
+
+  // PowerPointは開発サーバーでPDFへ変換してから、既存のPDF表示処理へ渡します。
+  async function loadPresentationFile(file: File): Promise<void> {
+    status.hidden = false;
+    status.textContent = `PowerPointをPDFに変換しています… ${file.name}`;
+    viewer.setAttribute("aria-busy", "true");
+
+    try {
+      const response = await fetch("/api/convert-presentation", {
+        method: "POST",
+        headers: { "X-Presentation-Filename": encodeURIComponent(file.name) },
+        body: file,
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => ({}))) as { message?: string };
+        throw new Error(result.message ?? "PowerPointをPDFへ変換できませんでした。");
+      }
+
+      const pdfFilename = `${file.name.replace(/\.(ppt|pptx)$/i, "")}.pdf`;
+      await loadPdfData(new Uint8Array(await response.arrayBuffer()), pdfFilename);
+    } catch (error) {
+      viewer.setAttribute("aria-busy", "false");
+      status.hidden = false;
+      status.textContent = error instanceof Error ? error.message : "PowerPointをPDFへ変換できませんでした。";
+    }
   }
 
   // PDF.jsを使い、PDFの全ページをcanvasへ描画します。
