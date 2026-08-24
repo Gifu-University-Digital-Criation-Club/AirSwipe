@@ -29,6 +29,7 @@ if (!app || !systemUi) {
   throw new Error("App root is missing.");
 }
 
+const appRoot = app;
 systemUi.innerHTML = debugPanelHtml;
 
 try {
@@ -57,6 +58,7 @@ const snapTwistFiredDisplayMs = 650;
 const video = query<HTMLVideoElement>("#cameraVideo");
 const cameraToggle = query<HTMLButtonElement>("#cameraToggle");
 const fullscreenButton = query<HTMLButtonElement>("#fullscreenButton");
+const systemExitButton = query<HTMLButtonElement>("#systemExitButton");
 const cameraStatus = query<HTMLElement>("#cameraStatus");
 const visionStatus = query<HTMLElement>("#visionStatus");
 const engineStatus = query<HTMLElement>("#engineStatus");
@@ -173,6 +175,9 @@ function bindEvents(): void {
     void document.documentElement.requestFullscreen();
   });
 
+  systemExitButton.addEventListener("click", () => {
+    void exitSystem();
+  });
   document.addEventListener("keydown", (event) => {
     const keyMap: Record<string, GestureDirection> = {
       ArrowLeft: "left",
@@ -197,6 +202,30 @@ function bindEvents(): void {
   });
 
   bindDebugPanelDrag();
+}
+
+// カメラと開発サーバーを停止して、発表システムを終了します。
+async function exitSystem(): Promise<void> {
+  if (!window.confirm("システムを終了しますか？")) return;
+
+  systemExitButton.disabled = true;
+  systemExitButton.textContent = "終了中…";
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+  }
+  if (cameraService.isRunning()) {
+    stopCamera();
+  }
+
+  try {
+    const response = await fetch("/api/shutdown", { method: "POST", keepalive: true });
+    if (!response.ok) throw new Error("終了リクエストに失敗しました。");
+    appRoot.innerHTML = '<main class="system-exit-message">システムを終了しました。このタブは閉じて構いません。</main>';
+  } catch {
+    systemExitButton.disabled = false;
+    systemExitButton.textContent = "システム終了";
+    window.alert("システムを終了できませんでした。起動に使ったターミナルでCtrl+Cを押してください。");
+  }
 }
 
 // カメラを起動し、Pose Landmarkerを初期化して認識ループを開始します。

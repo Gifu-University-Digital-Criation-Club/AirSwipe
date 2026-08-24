@@ -30,6 +30,20 @@
   background: #eef5ff;
 }
 
+.icon-button.is-danger {
+  border-color: #d86a6a;
+  color: #a51d1d;
+}
+
+.icon-button.is-danger:hover {
+  background: #fff0f0;
+}
+
+.icon-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .status-pill {
   min-height: 32px;
   display: inline-flex;
@@ -117,7 +131,7 @@
 
 .debug-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 

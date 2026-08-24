@@ -8,6 +8,7 @@ import { defineConfig } from "vite";
 const editableHtmlRoute = "/editable/main.html";
 const editableHtmlPath = resolve(process.cwd(), "editable/main.html");
 const presentationConversionRoute = "/api/convert-presentation";
+const shutdownRoute = "/api/shutdown";
 const supportedPresentationExtensions = new Set([".ppt", ".pptx"]);
 
 function editableHtmlDevPlugin() {
@@ -70,6 +71,28 @@ function presentationConversionDevPlugin() {
         }
 
         void convertPresentationRequest(request, response).catch(next);
+      });
+    },
+  };
+}
+
+function systemShutdownDevPlugin() {
+  return {
+    name: "system-shutdown-dev",
+    apply: "serve",
+
+    configureServer(server) {
+      server.middlewares.use(shutdownRoute, (request, response, next) => {
+        if (request.method !== "POST") {
+          next();
+          return;
+        }
+
+        response.statusCode = 204;
+        response.end();
+        setTimeout(() => {
+          void server.close().finally(() => process.exit(0));
+        }, 100);
       });
     },
   };
@@ -190,7 +213,7 @@ function sendConversionError(response, statusCode, message) {
 }
 
 export default defineConfig({
-  plugins: [editableHtmlDevPlugin(), editableHtmlBuildPlugin(), presentationConversionDevPlugin()],
+  plugins: [editableHtmlDevPlugin(), editableHtmlBuildPlugin(), presentationConversionDevPlugin(), systemShutdownDevPlugin()],
   server: {
     watch: {
       ignored: ["**/public/mediapipe/models/*.task"],

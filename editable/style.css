@@ -9,6 +9,18 @@ body {
     background-color: #000;
 }
 
+.system-exit-message {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: #101827;
+    color: #ffffff;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(1.25rem, 3vw, 2rem);
+    font-weight: 700;
+    text-align: center;
+}
+
 /* スライド全体を中央に配置するためのラッパー */
 .slide-wrapper {
     display: flex;
