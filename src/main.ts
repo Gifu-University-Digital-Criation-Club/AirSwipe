@@ -133,8 +133,8 @@ function createGestureEngine(): GestureEngine {
   snapTwistRecognizer = new SnapTwistRecognizer(settings.gesture.snapTwist);
   return new GestureEngine(
     [
-      snapTwistRecognizer,
       new ArmSwipeRecognizer(settings.gesture.armSwipe),
+      snapTwistRecognizer,
     ],
     settings.gesture.armSwipe.cooldownMs,
   );

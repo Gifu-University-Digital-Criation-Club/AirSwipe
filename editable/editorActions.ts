@@ -46,6 +46,7 @@ const PDF_JS_WORKER_PATH = "/build/pdf.worker.mjs";
 export function bindEditorActions(): PdfViewerController {
   const viewer = getRequiredElement<HTMLElement>("#pdf-viewer");
   const status = getRequiredElement<HTMLElement>("#pdf-status");
+  const blackout = getRequiredElement<HTMLElement>("#presentation-blackout");
 
   viewer.style.width = "100%";
   viewer.style.padding = "0";
@@ -56,6 +57,7 @@ export function bindEditorActions(): PdfViewerController {
   let scrollEndTimer = 0;
   let scrollUpdateFrame = 0;
   let loadRequestId = 0;
+  let isBlackoutActive = false;
 
   viewer.scrollTo({ left: 0, top: 0 });
 
@@ -100,6 +102,7 @@ export function bindEditorActions(): PdfViewerController {
   // PDF.jsを使い、PDFの全ページをcanvasへ描画します。
   async function loadPdfData(data: Uint8Array, filename: string): Promise<void> {
     const requestId = ++loadRequestId;
+    resetBlackout();
     viewer.setAttribute("aria-busy", "true");
     status.hidden = false;
     status.textContent = `PDFを読み込んでいます… ${filename}`;
@@ -145,6 +148,7 @@ export function bindEditorActions(): PdfViewerController {
   // 起動時のdemo.pdfが存在しない場合に、PDF選択を促します。
   function showUnloadedState(): void {
     ++loadRequestId;
+    resetBlackout();
     viewer.replaceChildren();
     slides = [];
     currentIndex = 0;
@@ -155,7 +159,24 @@ export function bindEditorActions(): PdfViewerController {
 
   // ジェスチャ確定時のページ位置を更新する関数です。
   function renderGestureCommand(event: GestureEvent): void {
-    if (isScrolling || slides.length === 0) return;
+    if (slides.length === 0) return;
+
+    // 黒画面中は再度の手首捻りだけを受け付け、1ページ目から再開する。
+    if (isBlackoutActive) {
+      if (event.id === "SNAP_TWIST") {
+        returnToFirstSlide();
+      }
+      return;
+    }
+
+    if (isScrolling) return;
+
+    if (event.id === "SNAP_TWIST" && currentIndex === slides.length - 1) {
+      isBlackoutActive = true;
+      blackout.hidden = false;
+      blackout.setAttribute("aria-hidden", "false");
+      return;
+    }
 
     if (event.direction === "right" && currentIndex < slides.length - 1) {
       currentIndex++;
@@ -164,6 +185,22 @@ export function bindEditorActions(): PdfViewerController {
       currentIndex--;
       scrollToSlide(currentIndex);
     }
+  }
+
+  // 黒画面を解除する。
+  function resetBlackout(): void {
+    isBlackoutActive = false;
+    blackout.hidden = true;
+    blackout.setAttribute("aria-hidden", "true");
+  }
+
+  // ページ移動を見せず、黒画面の背後で先頭へ戻してから表示を再開する。
+  function returnToFirstSlide(): void {
+    window.clearTimeout(scrollEndTimer);
+    isScrolling = false;
+    currentIndex = 0;
+    viewer.scrollTo({ left: 0, top: 0, behavior: "auto" });
+    resetBlackout();
   }
 
   // 指定したインデックスのページへスクロールする関数

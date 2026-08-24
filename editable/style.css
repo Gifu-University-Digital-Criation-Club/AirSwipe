@@ -35,6 +35,18 @@ body {
     display: none;
 }
 
+/* 最終ページで手首捻りが発火した後、発表画面全体を黒く覆う */
+.presentation-blackout {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: #000;
+}
+
+.presentation-blackout[hidden] {
+    display: none;
+}
+
 /* PDFの各ページを横方向に1画面ずつ配置 */
 #pdf-viewer .pdf-page {
     flex: 0 0 100%;

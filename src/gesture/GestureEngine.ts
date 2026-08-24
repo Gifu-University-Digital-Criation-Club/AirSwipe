@@ -11,20 +11,22 @@ export class GestureEngine {
   }
 
   process(frame: FrameContext): GestureEvent | null {
-    if (frame.timestamp - this.lastConfirmedAt < this.cooldownMs) {
-      return null;
-    }
+    let firstEvent: GestureEvent | null = null;
 
     for (const recognizer of this.recognizers) {
       const event = recognizer.process(frame);
-      if (event) {
-        this.lastConfirmedAt = frame.timestamp;
-        this.recognizers.forEach((item) => item.reset());
-        return event;
+      if (event && !firstEvent) {
+        firstEvent = event;
       }
     }
 
-    return null;
+    if (!firstEvent || frame.timestamp - this.lastConfirmedAt < this.cooldownMs) {
+      return null;
+    }
+
+    this.lastConfirmedAt = frame.timestamp;
+    this.recognizers.forEach((item) => item.reset());
+    return firstEvent;
   }
 
   reset(): void {
