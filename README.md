@@ -58,6 +58,16 @@ pnpm install --frozen-lockfile
 
 ## アプリを起動する
 
+### クリックだけで起動する
+
+Windowsでは、プロジェクト直下の`起動.bat`をダブルクリックしてください。macOSでは`起動.command`をダブルクリックしてください。
+
+Node.jsがない場合は自動で導入を試み、必要なライブラリも自動でインストールしてからアプリを起動します。初回だけはダウンロードのため時間がかかります。起動後はブラウザが自動で開きます。
+
+WindowsでNode.jsの自動導入後に起動できなかった場合は、Windowsを再起動してからもう一度`起動.bat`をダブルクリックしてください。macOSで`起動.command`を初めて開く際は、Finderで右クリックして「開く」を選ぶ必要がある場合があります。
+
+### ターミナルから起動する
+
 初回セットアップが済んでいる場合は、プロジェクトのフォルダをVS CodeかPowerShellで開き、次を実行します。
 
 ```powershell
@@ -73,6 +83,12 @@ Local: http://127.0.0.1:5173/
 ChromeまたはEdgeで[http://127.0.0.1:5173/](http://127.0.0.1:5173/)(注：アドレスが異なる場合もあります。気を付けて！)を開きます。終了するときは、起動に使ったターミナルで`Ctrl+C`を押します。
 
 依存ライブラリが更新されていない普段の作業では、`pnpm run dev`だけで起動できます。別の人の変更を取り込んだ後は、起動前に`pnpm install --frozen-lockfile`を実行してください。
+
+### PowerPointを読み込む場合
+
+「資料読込」からPDFに加えてPowerPoint（`.ppt` / `.pptx`）を指定できます。PowerPointは、このPC上でLibreOfficeを使ってPDFへ変換してから表示します。
+
+事前に[LibreOffice](https://www.libreoffice.org/download/download-libreoffice/)をインストールし、インストール後は`pnpm run dev`を一度終了して起動し直してください。通常は自動で検出されます。検出できない環境では、`AIRSWIPE_SOFFICE_PATH`に`soffice`実行ファイルのパスを指定してから起動してください。
 
 ## コマンドが見つからない場合
 
