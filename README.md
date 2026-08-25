@@ -21,7 +21,9 @@ Node.jsとpnpmをまだ導入していない場合は、以下の「初回セッ
 4. インストール後、VS Codeをすべて閉じてから開き直します。開いているターミナルだけでなく、VS Code本体を再起動してください。
 
 VS Codeでこのプロジェクトを開き、新しいターミナルで次を実行します。PowerShellでもいいです。
-> NOTE：満仲はPowerShellで確認済み。VSCodeはたまに上手くいかないときがあるのでだめだったらPowerShellでやり直してください。PowerShellでだめだったら連絡ください。
+> [!NOTE]
+> 満仲はPowerShellで確認済み。\
+> VSCodeはたまに上手くいかないときがあるのでだめだったらPowerShellでやり直してください。PowerShellでだめだったら連絡ください。
 
 ```powershell
 node --version
